@@ -42,7 +42,7 @@ documents = [['antony', 'brutus', 'caeser', 'cleopatra', 'mercy', 'worser'],
 document_number = 1
 positional_index = {}
 
-for document in documents:
+for document in documents_of_terms:
 
     for positional, term in enumerate(document):
 
@@ -66,12 +66,11 @@ for document in documents:
 
 print(positional_index)
 
-"""
 print('write your query')
-query = str(input())"""
+query = str(input())
 
-query = 'antony caeser'
-
+"""query = 'antony caeser'
+"""
 final_list = [[] for i in range(10)]
 
 for word in query.split():
@@ -93,7 +92,6 @@ for position, list in enumerate(final_list, start=1):
     if len(list) == len(query.split()):
         print(position)
 
-
 all_words = []
 for doc in documents:
     for word in doc:
@@ -108,7 +106,7 @@ def get_term_freq(doc):
 
 
 term_freq = pd.DataFrame(get_term_freq(documents[0]).values(), index=get_term_freq(documents[0]).keys())
-#print(term_freq)
+# print(term_freq)
 
 for i in range(1, len(documents)):
     term_freq[i] = get_term_freq(documents[i]).values()
@@ -118,7 +116,7 @@ print(" ")
 print(" ")
 print(" ")
 print(" ")
-print('terms frequency')
+print("____________________________tf_______________________________________")
 print(term_freq)
 
 
@@ -128,9 +126,12 @@ def get_weighted_term_freq(x):
     return 0
 
 
-for i in range(1, len(documents)+1):
+for i in range(1, len(documents) + 1):
     term_freq['doc' + str(i)] = term_freq['doc' + str(i)].apply(get_weighted_term_freq)
-
+print('')
+print('')
+print('')
+print("____________________________tfWeight_______________________________________")
 print(term_freq)
 
 tfd = pd.DataFrame(columns=['freq', 'idf'])
@@ -143,36 +144,42 @@ for i in range(len(term_freq)):
     tfd.loc[i, 'idf'] = math.log10(float(10 / frequency))
 
 tfd.index = term_freq.index
+
 print(tfd)
 
 term_freq_inve_doc_frq = term_freq.multiply(tfd['idf'], axis=0)
 
+print('')
+print("____________________________TF-IDF_______________________________________")
 print(term_freq_inve_doc_frq)
 
-#-------------document linght------------
+# -------------document length------------
 
 document_length = pd.DataFrame()
 
+
 def get_docs_length(col):
-    return np.sqrt(term_freq_inve_doc_frq[col].apply(lambda x: x**2).sum())
+    return np.sqrt(term_freq_inve_doc_frq[col].apply(lambda x: x ** 2).sum())
+
 
 for column in term_freq_inve_doc_frq.columns:
-    document_length.loc[0, column+'_len'] = get_docs_length(column)
+    document_length.loc[0, column + '_len'] = get_docs_length(column)
 
 print(document_length)
-
+print('')
+print("____________________________normalized TF-IDF_______________________________________")
 normalized_term_freq_idf = pd.DataFrame()
+
 
 def get_normalized(col, x):
     try:
-        return x / document_length[col+'_len'].values[0]
+        return x / document_length[col + '_len'].values[0]
     except:
         return 0
 
+
 for column in term_freq_inve_doc_frq.columns:
-    normalized_term_freq_idf[column] = term_freq_inve_doc_frq[column].apply(lambda x : get_normalized(column, x))
-
-
+    normalized_term_freq_idf[column] = term_freq_inve_doc_frq[column].apply(lambda x: get_normalized(column, x))
 
 print(normalized_term_freq_idf)
 
@@ -193,7 +200,9 @@ x = vector.fit_transform(documents)
 x = x.T.toarray()
 df = pd.DataFrame(x, index=vector.get_feature_names_out())
 
-query2 ='antony brutus'
+print('write your query')
+query2 = str(input())
+
 
 q = [query2]
 
@@ -206,6 +215,51 @@ for i in range(10):
 
 similarity_sorted = sorted(similarity.items(), key=lambda x: x[1])
 for docu, score in similarity_sorted:
-        print('similarity score = ',score)
-        print('doc is: ', docu+1)
+    print('similarity score = ', score)
+    print('doc is: ', docu + 1)
 
+
+def get_w_tf(x):
+    try:
+        return math.log10(x) + 1
+    except:
+        return 0
+
+
+final_set = pd.DataFrame(index=normalized_term_freq_idf.index)
+final_set['tf'] = [1 if x in query2.split() else 0 for x in (normalized_term_freq_idf.index)]
+final_set['w_tf'] = final_set['tf'].apply(lambda x: get_w_tf(x))
+product = normalized_term_freq_idf.multiply(final_set['w_tf'], axis=0)
+final_set['idf'] = tfd['idf'] * final_set['w_tf']
+final_set['tf_idf'] = final_set['w_tf'] * final_set['idf']
+final_set['norm'] = 0
+for i in range (len(final_set)):
+    final_set['norm'].iloc[i] = float(final_set['idf'].iloc[i]/ math.sqrt(sum(final_set['idf'].values**2)))
+product2 = product.multiply(final_set['norm'], axis=0)
+print('')
+print('')
+print('')
+print('')
+print(final_set)
+
+scores = {}
+for col in product2.columns:
+    if 0 in product2[col].loc[query2.split()].values:
+        pass
+    else:
+        scores[col] = product2[col].sum()
+
+
+print('cosine similarity')
+print(scores)
+
+Q_l = math.sqrt(sum([x**2 for x in final_set['idf'].loc[query2.split()]]))
+print('query length ')
+print(Q_l)
+
+prd_res = product2[(scores.keys())].loc[query2.split()]
+print('-------product (query*match docs)--------')
+print(prd_res)
+
+print('-------product summation (query*match docs)--------')
+print(prd_res.sum())
